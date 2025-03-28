@@ -2,12 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, Twitter, Facebook, Linkedin } from 'lucide-react';
+import { Copy, Twitter, Facebook, Linkedin, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import DonateButton from './DonateButton';
 import PaymentOptions from './PaymentOptions';
-import DeletePageButton from './DeletePageButton';
 
 const MyPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -19,6 +18,8 @@ const MyPage: React.FC = () => {
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -61,6 +62,10 @@ const MyPage: React.FC = () => {
 
   const handleCreatePage = () => {
     navigate('/reason');
+  };
+
+  const handleEditPage = () => {
+    navigate('/edit-page');
   };
 
   const handleHover = (hover: boolean) => {
@@ -109,6 +114,28 @@ const MyPage: React.FC = () => {
     
     if (shareLink) {
       window.open(shareLink, '_blank', 'width=600,height=400');
+    }
+  };
+
+  const handleDeletePage = async () => {
+    if (!user || !pageData?.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('begging_pages')
+        .delete()
+        .eq('id', pageData.id)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      navigate('/');
+    } catch (err) {
+      console.error('Error deleting page:', err);
+      setShowDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -314,7 +341,37 @@ const MyPage: React.FC = () => {
       </div>
       
       {/* Delete page button */}
-      <DeletePageButton pageId={pageData.id} />
+      <div className="fixed bottom-6 right-6">
+        {showDeleteConfirm ? (
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <p className="text-sm text-gray-700 mb-3">Are you sure you want to delete your page?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="py-2 px-4 bg-gray-200 text-gray-700 rounded-md text-sm"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePage}
+                className="py-2 px-4 bg-red-500 text-white rounded-md text-sm"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-3 bg-red-50 hover:bg-red-100 text-red-500 rounded-full shadow-md"
+            title="Delete page"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

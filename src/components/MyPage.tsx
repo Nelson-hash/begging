@@ -1,8 +1,13 @@
+// src/components/MyPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Share2, Edit, Copy, Twitter, Facebook, Linkedin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { Share2, Edit } from 'lucide-react';
+import DonateButton from './DonateButton';
+import PaymentOptions from './PaymentOptions';
+import FallingText from './FallingText';
 
 const MyPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -11,6 +16,10 @@ const MyPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(true);
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -49,18 +58,45 @@ const MyPage: React.FC = () => {
     };
 
     fetchPageData();
-  }, [user, isAuthenticated, isLoading, navigate]);
+  }, [user, isAuthenticated, navigate]);
 
   const handleCreatePage = () => {
     navigate('/reason');
   };
 
-  const handleShare = (platform: string) => {
-    if (!pageData) return;
+  const handleEditPage = () => {
+    navigate('/reason');
+  };
+
+  const handleHover = (hover: boolean) => {
+    if (!showPaymentOptions) {
+      setIsHovered(hover);
+    }
+  };
+
+  const handleDonateClick = () => {
+    setShowPaymentOptions(true);
+    setIsHovered(false);
+  };
+  
+  const handleCopyLink = async () => {
+    if (!pageData?.id) return;
     
-    const shareUrl = window.location.origin + '/donate/' + pageData.id;
-    const title = `Help ${pageData.title || 'me'} - Begging.app`;
-    const text = `Check out my begging page: ${pageData.title || 'Need your help!'}`;
+    try {
+      const shareUrl = `${window.location.origin}/donate/${pageData.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setShowCopiedTooltip(true);
+      setTimeout(() => setShowCopiedTooltip(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleShare = (platform: string) => {
+    if (!pageData?.id) return;
+    
+    const shareUrl = `${window.location.origin}/donate/${pageData.id}`;
+    const text = `Help me get money for ${pageData.title || 'my project'}! 🙏`;
     
     let shareLink;
     
@@ -74,15 +110,11 @@ const MyPage: React.FC = () => {
       case 'linkedin':
         shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
         break;
-      case 'copy':
-        navigator.clipboard.writeText(shareUrl);
-        alert('Link copied to clipboard!');
-        setShowShareOptions(false);
-        return;
     }
     
-    window.open(shareLink, '_blank');
-    setShowShareOptions(false);
+    if (shareLink) {
+      window.open(shareLink, '_blank', 'width=600,height=400');
+    }
   };
 
   if (isLoading) {
@@ -92,106 +124,213 @@ const MyPage: React.FC = () => {
   // First time user with no page
   if (!pageData) {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-4 text-center">
-        <h1 className="text-3xl font-bold mb-6">Create Your Begging Page</h1>
-        <p className="text-gray-600 mb-8">
-          You haven't created a begging page yet. Start by telling us what you're begging for.
-        </p>
-        <button
-          onClick={handleCreatePage}
-          className="py-4 px-8 bg-gradient-to-r from-violet-400 to-indigo-400 text-white rounded-lg text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md"
         >
-          Create My Page
-        </button>
+          <h1 className="text-3xl font-bold mb-6" style={{ fontFamily: 'Space Grotesk' }}>
+            Create Your Begging Page
+          </h1>
+          <p className="text-gray-600 mb-8">
+            You haven't created a begging page yet. Tell us what you're begging for and start receiving donations!
+          </p>
+          <button
+            onClick={handleCreatePage}
+            className="px-8 py-4 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-full text-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+            style={{ fontFamily: 'Space Grotesk' }}
+          >
+            START BEGGING NOW
+          </button>
+        </motion.div>
       </div>
     );
   }
 
   // Existing page
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      <div className="flex justify-between items-start mb-8">
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-500 to-teal-400 bg-clip-text text-transparent">
-          GIVE ME MONEY<br />
-          FOR {pageData.title}
-        </h1>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-between py-12 px-4">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute top-4 right-4 flex items-center gap-2"
+      >
+        <button
+          onClick={handleEditPage}
+          className="flex items-center gap-1 py-2 px-4 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors text-gray-700"
+        >
+          <Edit className="w-4 h-4" />
+          <span>Edit Page</span>
+        </button>
         
-        <div className="flex gap-2">
+        <div className="relative">
           <button 
-            onClick={() => navigate('/reason')}
-            className="flex items-center gap-2 py-2 px-4 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            onClick={() => setShowShareOptions(!showShareOptions)}
+            className="flex items-center gap-1 py-2 px-4 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors text-gray-700"
           >
-            <Edit className="h-5 w-5 text-gray-600" />
-            <span className="text-gray-700">Edit</span>
+            <Share2 className="w-4 h-4" />
+            <span>Share</span>
           </button>
           
-          <div className="relative">
-            <button 
-              onClick={() => setShowShareOptions(!showShareOptions)}
-              className="flex items-center gap-2 py-2 px-4 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+          {showShareOptions && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute right-0 mt-2 p-2 bg-white shadow-lg rounded-lg z-20 flex gap-2"
             >
-              <Share2 className="h-5 w-5 text-gray-600" />
-              <span className="text-gray-700">Share</span>
-            </button>
-            
-            {showShareOptions && (
-              <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg overflow-hidden z-10 w-40">
-                <button
-                  onClick={() => handleShare('twitter')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <span>Twitter</span>
-                </button>
-                <button
-                  onClick={() => handleShare('facebook')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <span>Facebook</span>
-                </button>
-                <button
-                  onClick={() => handleShare('linkedin')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <span>LinkedIn</span>
-                </button>
-                <button
-                  onClick={() => handleShare('copy')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <span>Copy Link</span>
-                </button>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleShare('twitter')}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Twitter className="w-4 h-4 text-gray-700" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleShare('facebook')}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Facebook className="w-4 h-4 text-gray-700" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleShare('linkedin')}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Linkedin className="w-4 h-4 text-gray-700" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCopyLink}
+                className="relative p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Copy className="w-4 h-4 text-gray-700" />
+                <AnimatePresence>
+                  {showCopiedTooltip && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-gray-500"
+                    >
+                      Copied!
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+      
+      <div className="flex-1 flex items-center">
+        <motion.div 
+          className={`text-center relative ${!showPaymentOptions ? 'cursor-pointer' : ''}`}
+          onMouseEnter={() => handleHover(true)}
+          onMouseLeave={() => handleHover(false)}
+          layout
+        >
+          <motion.div 
+            layout
+            className="relative"
+            animate={{ 
+              y: showPaymentOptions ? -80 : isHovered ? -20 : 0,
+              opacity: showPaymentOptions ? 0.3 : 1
+            }}
+            transition={{ 
+              duration: 0.6,
+              ease: [0.43, 0.13, 0.23, 0.96]
+            }}
+          >
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-500 to-teal-400 bg-clip-text text-transparent">
+              GIVE ME
+            </h1>
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-500 to-teal-400 bg-clip-text text-transparent">
+              MONEY
+            </h1>
+          </motion.div>
+          
+          <AnimatePresence>
+            {isHovered && !showPaymentOptions && (
+              <motion.div
+                layout
+                className="h-16 sm:h-20 flex items-center justify-center"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ 
+                  duration: 0.6,
+                  ease: [0.43, 0.13, 0.23, 0.96]
+                }}
+              >
+                <div onClick={handleDonateClick}>
+                  <DonateButton />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {showPaymentOptions && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="fixed inset-0 flex items-center justify-center bg-black/5 backdrop-blur-sm"
+                onClick={() => setShowPaymentOptions(false)}
+              >
+                <div onClick={e => e.stopPropagation()} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl">
+                  <PaymentOptions />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.div
+            layout
+            animate={{ 
+              y: showPaymentOptions ? 80 : isHovered ? 20 : 0,
+              opacity: showPaymentOptions ? 0.3 : 1
+            }}
+            transition={{ 
+              duration: 0.6,
+              ease: [0.43, 0.13, 0.23, 0.96]
+            }}
+          >
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-500 to-teal-400 bg-clip-text text-transparent">
+              FOR {pageData.title?.toUpperCase()}
+            </h1>
+          </motion.div>
+        </motion.div>
+      </div>
+
+      <div className="w-full max-w-6xl flex justify-between items-end mt-8">
+        {(pageData.gif_url || pageData.reason) && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-end gap-4"
+          >
+            {pageData.gif_url && (
+              <div className="w-48 h-48 rounded-lg overflow-hidden">
+                <img src={pageData.gif_url} alt="Convincing GIF" className="w-full h-full object-cover" />
               </div>
             )}
-          </div>
-        </div>
-      </div>
-      
-      {pageData.gif_url && (
-        <div className="mb-8">
-          <img 
-            src={pageData.gif_url}
-            alt="Begging GIF"
-            className="mx-auto max-h-80 rounded-lg"
-          />
-        </div>
-      )}
-      
-      {pageData.reason && (
-        <div className="mb-8">
-          <p className="text-lg text-gray-700 whitespace-pre-line">
-            {pageData.reason}
-          </p>
-        </div>
-      )}
-      
-      <div className="flex flex-col items-center gap-4">
-        <button className="py-4 px-8 bg-gradient-to-r from-orange-400 to-pink-500 text-white rounded-xl text-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all">
-          Donate via PayPal
-        </button>
-        
-        <button className="py-4 px-8 bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-xl text-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all">
-          Donate Crypto
-        </button>
+            {pageData.reason && (
+              <div className="max-w-xs">
+                <p className="text-sm text-gray-600 italic">"{pageData.reason}"</p>
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
     </div>
   );

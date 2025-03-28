@@ -1,15 +1,16 @@
 // src/components/Navbar.tsx
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { Share2, Edit } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const location = useLocation();
   
   // Only show Edit/Share buttons on My Page
-  const isMyPage = window.location.pathname === '/my-page';
+  const isMyPage = location.pathname === '/my-page';
   
   return (
     <header className="bg-white py-4 px-6 flex items-center justify-between">
@@ -39,7 +40,7 @@ const Navbar: React.FC = () => {
         {isAuthenticated && isMyPage && (
           <>
             <Link 
-              to="/reason" 
+              to="/edit-page" 
               className="flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
               <Edit className="w-4 h-4" />

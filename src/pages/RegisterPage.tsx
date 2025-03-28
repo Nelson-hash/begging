@@ -70,7 +70,7 @@ const RegisterPage = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: 'https://your-vercel-domain.vercel.app/reason'
+        redirectTo: 'https://begging.vercel.app/reason'
       }
     });
 

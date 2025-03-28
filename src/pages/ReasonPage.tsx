@@ -1,27 +1,34 @@
-// src/pages/ReasonPage.tsx
-import React, { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useDropzone } from 'react-dropzone';
-import { Image, ArrowRight } from 'lucide-react';
+// src/pages/ResultPage.tsx
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Share2, Copy, Twitter, Facebook, Linkedin } from 'lucide-react';
+import FallingText from '../components/FallingText';
+import DonateButton from '../components/DonateButton';
+import PaymentOptions from '../components/PaymentOptions';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthContext';
 
-const ReasonPage = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [reason, setReason] = useState('');
-  const [gif, setGif] = useState<File | null>(null);
-  const [gifUrl, setGifUrl] = useState('');
-  const [justification, setJustification] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [existingPage, setExistingPage] = useState<any>(null);
-  const [error, setError] = useState('');
+const ResultPage = () => {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const reason = searchParams.get('reason') || '';
+  const gif = searchParams.get('gif');
+  const justification = searchParams.get('justification');
+  
+  const [isHovered, setIsHovered] = useState(false);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(false);
+  const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
+  const [pageId, setPageId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user already has a page
-    const checkExistingPage = async () => {
-      if (!isAuthenticated || !user) {
+    const fetchPageData = async () => {
+      if (!user) {
         setIsLoading(false);
         return;
       }
@@ -29,121 +36,79 @@ const ReasonPage = () => {
       try {
         const { data, error } = await supabase
           .from('begging_pages')
-          .select('*')
+          .select('id')
           .eq('user_id', user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error checking existing page:', error);
-        } else if (data) {
-          setExistingPage(data);
-          setReason(data.title || '');
-          setJustification(data.reason || '');
-          setGifUrl(data.gif_url || '');
-        }
+        if (error) throw error;
+        setPageId(data.id);
       } catch (err) {
-        console.error('Error:', err);
+        console.error('Error fetching page ID:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkExistingPage();
-  }, [user, isAuthenticated]);
+    fetchPageData();
+  }, [user]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file && file.type === 'image/gif') {
-      setGif(file);
-      
-      // Create a local URL for the file for preview
-      const objectUrl = URL.createObjectURL(file);
-      setGifUrl(objectUrl);
-    }
+  useEffect(() => {
+    const totalAnimationTime = 2.5;
+    const timer = setTimeout(() => {
+      setAnimationComplete(true);
+    }, totalAnimationTime * 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/gif': ['.gif']
-    },
-    maxFiles: 1
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isAuthenticated || !user) {
-      setError('You must be logged in to create a page');
-      return;
+  const handleHover = (hover: boolean) => {
+    if (animationComplete && !showPaymentOptions) {
+      setIsHovered(hover);
     }
+  };
 
-    if (!reason.trim()) {
-      setError('Please enter what you are begging for');
-      return;
-    }
+  const handleDonateClick = () => {
+    setShowPaymentOptions(true);
+    setIsHovered(false);
+  };
 
-    setIsLoading(true);
-    setError('');
-
+  const handleCopyLink = async () => {
     try {
-      // Handle file upload if there's a gif
-      let finalGifUrl = gifUrl;
-      if (gif) {
-        const reader = new FileReader();
-        reader.readAsDataURL(gif);
+      // If we have a page ID, use a direct link to the page
+      const shareLink = pageId 
+        ? `${window.location.origin}/donate/${pageId}` 
+        : `${window.location.origin}${location.pathname}${location.search}`;
         
-        // Use the Data URL as the gif_url for simplicity
-        // In a production app, you'd want to upload to storage
-        await new Promise<void>((resolve) => {
-          reader.onloadend = () => {
-            finalGifUrl = reader.result as string;
-            resolve();
-          };
-        });
-      }
+      await navigator.clipboard.writeText(shareLink);
+      setShowCopiedTooltip(true);
+      setTimeout(() => setShowCopiedTooltip(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
-      const pageData = {
-        user_id: user.id,
-        title: reason,
-        reason: justification,
-        gif_url: finalGifUrl,
-        updated_at: new Date()
-      };
-
-      let result;
+  const handleShare = (platform: string) => {
+    const text = `Help me get money for ${reason}! 🙏`;
+    const shareLink = pageId 
+      ? `${window.location.origin}/donate/${pageId}` 
+      : window.location.href;
       
-      if (existingPage) {
-        // Update existing page
-        result = await supabase
-          .from('begging_pages')
-          .update(pageData)
-          .eq('id', existingPage.id);
-      } else {
-        // Create new page
-        result = await supabase
-          .from('begging_pages')
-          .insert([pageData]);
-      }
+    let shareUrl = '';
 
-      if (result.error) {
-        throw result.error;
-      }
+    switch (platform) {
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareLink)}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`;
+        break;
+      case 'linkedin':
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareLink)}`;
+        break;
+    }
 
-      // Prepare search params for result page
-      const searchParams = new URLSearchParams();
-      searchParams.set('reason', reason);
-      searchParams.set('justification', justification);
-      
-      if (finalGifUrl) {
-        searchParams.set('gif', finalGifUrl);
-      }
-      
-      navigate(`/result?${searchParams.toString()}`);
-    } catch (err: any) {
-      console.error('Error saving page:', err);
-      setError(err.message || 'Failed to save your page');
-      setIsLoading(false);
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'width=600,height=400');
     }
   };
 
@@ -156,121 +121,183 @@ const ReasonPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4">
-      {existingPage && (
-        <div className="mb-6 absolute top-4 left-4">
-          <button
-            onClick={goToMyPage}
-            className="text-violet-600 hover:text-violet-800 font-medium flex items-center"
-          >
-            ← Back to my page
-          </button>
-        </div>
-      )}
-      
-      <motion.form 
-        onSubmit={handleSubmit}
-        className="w-full max-w-md"
-        initial={{ opacity: 0, y: 20 }}
+    <div className="min-h-screen bg-white flex flex-col items-center justify-between py-12 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ delay: 2.7 }}
+        className="absolute top-4 right-4"
       >
-        <div className="flex flex-col items-center space-y-8">
+        <button
+          onClick={goToMyPage}
+          className="py-2 px-4 bg-gradient-to-r from-violet-400 to-indigo-400 text-white rounded-lg text-sm font-bold shadow-md hover:shadow-lg transform hover:scale-105 transition-all"
+        >
+          My Page
+        </button>
+      </motion.div>
+      
+      <div className="flex-1 flex items-center">
+        <motion.div 
+          className={`text-center relative ${animationComplete && !showPaymentOptions ? 'cursor-pointer' : ''}`}
+          onMouseEnter={() => handleHover(true)}
+          onMouseLeave={() => handleHover(false)}
+          layout
+        >
           <motion.div 
-            className="w-full text-center"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            layout
+            className="relative"
+            animate={{ 
+              y: showPaymentOptions ? -80 : isHovered ? -20 : 0,
+              opacity: showPaymentOptions ? 0.3 : 1
+            }}
+            transition={{ 
+              duration: 0.6,
+              ease: [0.43, 0.13, 0.23, 0.96]
+            }}
           >
-            <input
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Enter your reason here..."
-              className="w-full px-4 py-3 text-xl sm:text-3xl text-center bg-transparent border-b-2 border-gray-300 text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-400 transition-colors"
-              style={{ fontFamily: 'Space Grotesk' }}
-              autoFocus
-            />
+            <FallingText text="GIVE" delay={0} className="text-4xl sm:text-6xl md:text-8xl" />
+            <FallingText text="ME" delay={0.5} className="text-4xl sm:text-6xl md:text-8xl" />
+            <FallingText text="MONEY" delay={1} className="text-4xl sm:text-6xl md:text-8xl" />
           </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="w-full space-y-4"
-          >
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-                ${isDragActive ? 'border-violet-400 bg-violet-50' : 'border-gray-300 hover:border-violet-400'}`}
-            >
-              <input {...getInputProps()} />
-              <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              {gifUrl ? (
-                <div className="space-y-2">
-                  <img src={gifUrl} alt="Selected GIF" className="max-h-40 mx-auto rounded" />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setGif(null);
-                      setGifUrl('');
-                    }}
-                    className="text-xs text-red-500 hover:text-red-600"
-                  >
-                    Remove
-                  </button>
+          
+          <AnimatePresence>
+            {isHovered && !showPaymentOptions && (
+              <motion.div
+                layout
+                className="h-16 sm:h-20 flex items-center justify-center"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ 
+                  duration: 0.6,
+                  ease: [0.43, 0.13, 0.23, 0.96]
+                }}
+              >
+                <div onClick={handleDonateClick}>
+                  <DonateButton />
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  {isDragActive ? 'Drop your GIF here' : 'Add a convincing GIF (optional)'}
-                </p>
-              )}
-            </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <textarea
-              value={justification}
-              onChange={(e) => setJustification(e.target.value)}
-              placeholder="Brief explanation of why you need this... (optional)"
-              className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-400 transition-colors resize-none"
-              rows={3}
-              maxLength={200}
-            />
-          </motion.div>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="w-full bg-red-50 text-red-500 p-3 rounded-md text-sm"
-            >
-              {error}
-            </motion.div>
-          )}
+          <AnimatePresence>
+            {showPaymentOptions && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="fixed inset-0 flex items-center justify-center bg-black/5 backdrop-blur-sm"
+                onClick={() => setShowPaymentOptions(false)}
+              >
+                <div onClick={e => e.stopPropagation()} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl">
+                  <PaymentOptions />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="flex flex-col items-center gap-2"
+            layout
+            animate={{ 
+              y: showPaymentOptions ? 80 : isHovered ? 20 : 0,
+              opacity: showPaymentOptions ? 0.3 : 1
+            }}
+            transition={{ 
+              duration: 0.6,
+              ease: [0.43, 0.13, 0.23, 0.96]
+            }}
           >
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-8 py-2 bg-gradient-to-r from-violet-400 to-indigo-400 text-white rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ fontFamily: 'Space Grotesk' }}
-            >
-              {isLoading ? 'Saving...' : 'Continue'}
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <p className="text-center text-gray-400 text-xs">
-              Press Enter to continue
-            </p>
+            <FallingText text="FOR" delay={1.5} fromBottom={true} className="text-4xl sm:text-6xl md:text-8xl" />
+            <FallingText text={reason.toUpperCase()} delay={2} fromBottom={true} className="text-4xl sm:text-6xl md:text-8xl" />
           </motion.div>
-        </div>
-      </motion.form>
+        </motion.div>
+      </div>
+
+      <div className="w-full max-w-6xl flex justify-between items-end mt-8">
+        {(gif || justification) && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 2.5 }}
+            className="flex items-end gap-4"
+          >
+            {gif && (
+              <div className="w-48 h-48 rounded-lg overflow-hidden">
+                <img src={gif} alt="Convincing GIF" className="w-full h-full object-cover" />
+              </div>
+            )}
+            {justification && (
+              <div className="max-w-xs">
+                <p className="text-sm text-gray-600 italic">"{justification}"</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.5 }}
+          className="flex flex-col items-center gap-3"
+        >
+          <div className="flex items-center gap-2 text-gray-500">
+            <Share2 className="w-4 h-4" />
+            <span className="text-xs">Share with donors</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleShare('twitter')}
+              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              <Twitter className="w-4 h-4 text-gray-700" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleShare('facebook')}
+              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              <Facebook className="w-4 h-4 text-gray-700" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleShare('linkedin')}
+              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              <Linkedin className="w-4 h-4 text-gray-700" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCopyLink}
+              className="relative p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              <Copy className="w-4 h-4 text-gray-700" />
+              <AnimatePresence>
+                {showCopiedTooltip && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-gray-500"
+                  >
+                    Copied!
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };
 
-export default ReasonPage;
+export default ResultPage;

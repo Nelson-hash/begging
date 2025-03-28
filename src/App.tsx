@@ -9,12 +9,7 @@ import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
 import ReasonPage from './pages/ReasonPage';
 import ResultPage from './pages/ResultPage';
-import HotPage from './pages/HotPage'; // Import the HotPage component
-import EditPage from './pages/EditPage';
-
-// Import components
 import MyPage from './components/MyPage';
-import DonatePage from './components/DonatePage';
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -62,15 +57,7 @@ const AppWithAuth = () => {
                 </ProtectedRoute>
               } />
               
-              <Route path="/edit-page" element={
-                <ProtectedRoute>
-                  <EditPage />
-                </ProtectedRoute>
-              } />
-              
-              {/* Public routes */}
-              <Route path="/hot" element={<HotPage />} />
-              <Route path="/donate/:id" element={<DonatePage />} />
+              {/* Add more routes as needed */}
             </Routes>
           </main>
         </div>

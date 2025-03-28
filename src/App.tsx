@@ -9,7 +9,10 @@ import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
 import ReasonPage from './pages/ReasonPage';
 import ResultPage from './pages/ResultPage';
-import HotPage from './pages/HotPage'; // Assuming you have this page
+import HotPage from './pages/HotPage';
+
+// Import new component
+import MyPage from './components/MyPage';
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -37,11 +40,30 @@ const AppWithAuth = () => {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/reason" element={<ReasonPage />} />
-              <Route path="/hot" element={<HotPage />} />
-              <Route path="/result" element={<ResultPage />} />
               
-              {/* Add more routes here as needed */}
+              {/* Protected routes */}
+              <Route path="/reason" element={
+                <ProtectedRoute>
+                  <ReasonPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/result" element={
+                <ProtectedRoute>
+                  <ResultPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/my-page" element={
+                <ProtectedRoute>
+                  <MyPage />
+                </ProtectedRoute>
+              } />
+              
+              {/* Public routes */}
+              <Route path="/hot" element={<HotPage />} />
+              
+              {/* Add more routes as needed */}
             </Routes>
           </main>
         </div>

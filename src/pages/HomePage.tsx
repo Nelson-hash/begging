@@ -1,3 +1,4 @@
+// src/pages/HomePage.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -5,10 +6,22 @@ import { useAnimatedSuggestions } from '../hooks/useAnimatedSuggestions';
 import TextLine from '../components/TextLine';
 import SuggestionText from '../components/SuggestionText';
 import FallingText from '../components/FallingText';
+import { useAuth } from '../components/AuthContext';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const currentSuggestion = useAnimatedSuggestions();
+
+  const handleStartBegging = () => {
+    if (isAuthenticated) {
+      // User already logged in - go to their page
+      navigate('/my-page');
+    } else {
+      // User not logged in - go to registration
+      navigate('/register');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-16 sm:gap-24 px-4 pt-16">
@@ -25,10 +38,9 @@ const HomePage = () => {
           <SuggestionText text={currentSuggestion} />
         </div>
       </div>
-
       <div className="flex flex-col items-center gap-4">
         <button
-          onClick={() => navigate('/register')}
+          onClick={handleStartBegging}
           className="px-8 py-4 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-full text-xl sm:text-2xl font-bold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform transition-all duration-200"
           style={{ fontFamily: 'Space Grotesk' }}
         >

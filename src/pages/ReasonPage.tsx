@@ -1,19 +1,64 @@
-import React, { useState, useCallback } from 'react';
+// src/pages/ReasonPage.tsx
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { Image, ArrowRight } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/AuthContext';
 
 const ReasonPage = () => {
+  const { user, isAuthenticated } = useAuth();
   const [reason, setReason] = useState('');
   const [gif, setGif] = useState<File | null>(null);
+  const [gifUrl, setGifUrl] = useState('');
   const [justification, setJustification] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [existingPage, setExistingPage] = useState<any>(null);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user already has a page
+    const checkExistingPage = async () => {
+      if (!isAuthenticated || !user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('begging_pages')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking existing page:', error);
+        } else if (data) {
+          setExistingPage(data);
+          setReason(data.title || '');
+          setJustification(data.reason || '');
+          setGifUrl(data.gif_url || '');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkExistingPage();
+  }, [user, isAuthenticated]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file && file.type === 'image/gif') {
       setGif(file);
+      
+      // Create a local URL for the file for preview
+      const objectUrl = URL.createObjectURL(file);
+      setGifUrl(objectUrl);
     }
   }, []);
 
@@ -25,29 +70,104 @@ const ReasonPage = () => {
     maxFiles: 1
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (reason.trim()) {
+    
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to create a page');
+      return;
+    }
+
+    if (!reason.trim()) {
+      setError('Please enter what you are begging for');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Handle file upload if there's a gif
+      let finalGifUrl = gifUrl;
+      if (gif) {
+        const reader = new FileReader();
+        reader.readAsDataURL(gif);
+        
+        // Use the Data URL as the gif_url for simplicity
+        // In a production app, you'd want to upload to storage
+        await new Promise<void>((resolve) => {
+          reader.onloadend = () => {
+            finalGifUrl = reader.result as string;
+            resolve();
+          };
+        });
+      }
+
+      const pageData = {
+        user_id: user.id,
+        title: reason,
+        reason: justification,
+        gif_url: finalGifUrl,
+        updated_at: new Date()
+      };
+
+      let result;
+      
+      if (existingPage) {
+        // Update existing page
+        result = await supabase
+          .from('begging_pages')
+          .update(pageData)
+          .eq('id', existingPage.id);
+      } else {
+        // Create new page
+        result = await supabase
+          .from('begging_pages')
+          .insert([pageData]);
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      // Prepare search params for result page
       const searchParams = new URLSearchParams();
       searchParams.set('reason', reason);
       searchParams.set('justification', justification);
       
-      if (gif) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64Gif = reader.result as string;
-          searchParams.set('gif', base64Gif);
-          navigate(`/result?${searchParams.toString()}`);
-        };
-        reader.readAsDataURL(gif);
-      } else {
-        navigate(`/result?${searchParams.toString()}`);
+      if (finalGifUrl) {
+        searchParams.set('gif', finalGifUrl);
       }
+      
+      navigate(`/result?${searchParams.toString()}`);
+    } catch (err: any) {
+      console.error('Error saving page:', err);
+      setError(err.message || 'Failed to save your page');
+      setIsLoading(false);
     }
   };
 
+  const goToMyPage = () => {
+    navigate('/my-page');
+  };
+
+  if (isLoading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4">
+      {existingPage && (
+        <div className="mb-6 absolute top-4 left-4">
+          <button
+            onClick={goToMyPage}
+            className="text-violet-600 hover:text-violet-800 font-medium flex items-center"
+          >
+            ← Back to my page
+          </button>
+        </div>
+      )}
+      
       <motion.form 
         onSubmit={handleSubmit}
         className="w-full max-w-md"
@@ -86,14 +206,15 @@ const ReasonPage = () => {
             >
               <input {...getInputProps()} />
               <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              {gif ? (
+              {gifUrl ? (
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600">Selected GIF: {gif.name}</p>
+                  <img src={gifUrl} alt="Selected GIF" className="max-h-40 mx-auto rounded" />
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setGif(null);
+                      setGifUrl('');
                     }}
                     className="text-xs text-red-500 hover:text-red-600"
                   >
@@ -117,6 +238,16 @@ const ReasonPage = () => {
             />
           </motion.div>
 
+          {error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="w-full bg-red-50 text-red-500 p-3 rounded-md text-sm"
+            >
+              {error}
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -125,10 +256,11 @@ const ReasonPage = () => {
           >
             <button
               type="submit"
-              className="px-8 py-2 bg-gradient-to-r from-violet-400 to-indigo-400 text-white rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+              disabled={isLoading}
+              className="px-8 py-2 bg-gradient-to-r from-violet-400 to-indigo-400 text-white rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontFamily: 'Space Grotesk' }}
             >
-              Continue
+              {isLoading ? 'Saving...' : 'Continue'}
               <ArrowRight className="w-5 h-5" />
             </button>
             <p className="text-center text-gray-400 text-xs">

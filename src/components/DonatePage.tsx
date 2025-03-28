@@ -1,4 +1,4 @@
-// src/components/DonatePage.tsx
+// src/components/DonatePage.tsx - Updated to use enhanced PaymentOptions
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -111,7 +111,7 @@ const DonatePage: React.FC = () => {
                 }}
               >
                 <div onClick={handleDonateClick}>
-                  <DonateButton />
+                  <DonateButton onClick={handleDonateClick} />
                 </div>
               </motion.div>
             )}
@@ -127,7 +127,7 @@ const DonatePage: React.FC = () => {
                 onClick={() => setShowPaymentOptions(false)}
               >
                 <div onClick={e => e.stopPropagation()} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl">
-                  <PaymentOptions />
+                  <PaymentOptions pageId={id} pageTitle={pageData.title} />
                 </div>
               </motion.div>
             )}

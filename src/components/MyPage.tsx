@@ -56,27 +56,42 @@ const MyPage: React.FC = () => {
     navigate('/reason');
   };
 
-  const handleDeletePage = async () => {
-    if (!user || !pageData?.id) return;
+ // Updated handleDeletePage function for MyPage.tsx
+
+const handleDeletePage = async () => {
+  if (!user || !pageData?.id) {
+    console.error("Cannot delete: missing user or page ID");
+    return;
+  }
+  
+  setIsDeleting(true);
+  
+  try {
+    console.log("Attempting to delete page with ID:", pageData.id);
     
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase
-        .from('begging_pages')
-        .delete()
-        .eq('id', pageData.id)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      navigate('/');
-    } catch (err) {
-      console.error('Error deleting page:', err);
-    } finally {
-      setIsDeleting(false);
-      setShowConfirm(false);
+    const { error } = await supabase
+      .from('begging_pages')
+      .delete()
+      .match({ id: pageData.id, user_id: user.id });
+    
+    if (error) {
+      console.error("Supabase delete error:", error);
+      throw error;
     }
-  };
+    
+    console.log("Page successfully deleted");
+    
+    // Refresh the page list or redirect
+    navigate('/');
+    
+  } catch (err) {
+    console.error('Error deleting page:', err);
+    alert('Failed to delete page. Please try again.');
+  } finally {
+    setIsDeleting(false);
+    setShowConfirm(false);
+  }
+};
 
   if (isLoading) {
     return <div className="text-center py-10">Loading...</div>;

@@ -10,8 +10,9 @@ import RegisterPage from './pages/RegisterPage';
 import ReasonPage from './pages/ReasonPage';
 import ResultPage from './pages/ResultPage';
 import HotPage from './pages/HotPage'; // Assuming you have this page
+import EditPage from './pages/EditPage'; // Import the new EditPage
 
-// Import new components
+// Import components
 import MyPage from './components/MyPage';
 import DonatePage from './components/DonatePage';
 
@@ -58,6 +59,12 @@ const AppWithAuth = () => {
               <Route path="/my-page" element={
                 <ProtectedRoute>
                   <MyPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/edit-page" element={
+                <ProtectedRoute>
+                  <EditPage />
                 </ProtectedRoute>
               } />
               

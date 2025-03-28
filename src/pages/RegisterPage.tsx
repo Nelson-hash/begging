@@ -62,7 +62,7 @@ const RegisterPage = () => {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'instagram') => {
+ const handleSocialLogin = async (provider: 'google' | 'instagram') => {
   setLoading(true);
   setError('');
 
@@ -70,7 +70,8 @@ const RegisterPage = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: 'https://begging.vercel.app/reason'
+        redirectTo: 'https://begging.vercel.app/reason',
+        skipBrowserRedirect: false // Make sure this is false or omitted
       }
     });
 
@@ -80,7 +81,7 @@ const RegisterPage = () => {
     setLoading(false);
   }
 };
-
+  
 // Wallet connection (pseudo-code, you'll need to implement)
 const handleWalletConnect = async () => {
   setLoading(true);

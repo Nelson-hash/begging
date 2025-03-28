@@ -9,8 +9,8 @@ import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
 import ReasonPage from './pages/ReasonPage';
 import ResultPage from './pages/ResultPage';
-import HotPage from './pages/HotPage'; // Assuming you have this page
-import EditPage from './pages/EditPage'; // Import the new EditPage
+import HotPage from './pages/HotPage'; // Import the HotPage component
+import EditPage from './pages/EditPage';
 
 // Import components
 import MyPage from './components/MyPage';

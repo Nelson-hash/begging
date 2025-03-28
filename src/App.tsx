@@ -9,10 +9,11 @@ import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
 import ReasonPage from './pages/ReasonPage';
 import ResultPage from './pages/ResultPage';
-import HotPage from './pages/HotPage';
+import HotPage from './pages/HotPage'; // Assuming you have this page
 
-// Import new component
+// Import new components
 import MyPage from './components/MyPage';
+import DonatePage from './components/DonatePage';
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -62,8 +63,7 @@ const AppWithAuth = () => {
               
               {/* Public routes */}
               <Route path="/hot" element={<HotPage />} />
-              
-              {/* Add more routes as needed */}
+              <Route path="/donate/:id" element={<DonatePage />} />
             </Routes>
           </main>
         </div>

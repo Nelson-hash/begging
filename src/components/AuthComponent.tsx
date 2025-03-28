@@ -20,7 +20,7 @@ const AuthComponent = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://your-vercel-domain.vercel.app/dashboard'
+        redirectTo: 'https://begging.vercel.app/dashboard'
       }
     })
     

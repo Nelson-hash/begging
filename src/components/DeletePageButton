@@ -1,0 +1,73 @@
+// src/components/DeletePageButton.tsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
+
+const DeletePageButton: React.FC<{ pageId: string }> = ({ pageId }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const handleDelete = async () => {
+    if (!user || !pageId) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Delete the page
+      const { error } = await supabase
+        .from('begging_pages')
+        .delete()
+        .eq('id', pageId)
+        .eq('user_id', user.id); // Security check to ensure user owns the page
+      
+      if (error) throw error;
+      
+      // Redirect to home
+      navigate('/');
+    } catch (err) {
+      console.error('Error deleting page:', err);
+      setIsConfirming(false);
+      setIsDeleting(false);
+    }
+  };
+  
+  return (
+    <div className="fixed bottom-6 right-6">
+      {isConfirming ? (
+        <div className="bg-white p-4 rounded-lg shadow-lg">
+          <p className="text-sm text-gray-700 mb-3">Are you sure you want to delete your page?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsConfirming(false)}
+              className="py-2 px-4 bg-gray-200 text-gray-700 rounded-md text-sm"
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              className="py-2 px-4 bg-red-500 text-white rounded-md text-sm"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsConfirming(true)}
+          className="p-3 bg-red-50 hover:bg-red-100 text-red-500 rounded-full shadow-md"
+          title="Delete page"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+export default DeletePageButton;

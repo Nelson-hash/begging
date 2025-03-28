@@ -1,23 +1,56 @@
+// src/pages/ResultPage.tsx
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, Copy, Twitter, Facebook, Linkedin } from 'lucide-react';
 import FallingText from '../components/FallingText';
 import DonateButton from '../components/DonateButton';
 import PaymentOptions from '../components/PaymentOptions';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/AuthContext';
 
 const ResultPage = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const reason = searchParams.get('reason') || '';
   const gif = searchParams.get('gif');
   const justification = searchParams.get('justification');
+  
   const [isHovered, setIsHovered] = useState(false);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
   const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
+  const [pageId, setPageId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const shareUrl = `${window.location.origin}${location.pathname}${location.search}`;
+  useEffect(() => {
+    const fetchPageData = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('begging_pages')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) throw error;
+        setPageId(data.id);
+      } catch (err) {
+        console.error('Error fetching page ID:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPageData();
+  }, [user]);
 
   useEffect(() => {
     const totalAnimationTime = 2.5;
@@ -41,7 +74,12 @@ const ResultPage = () => {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      // If we have a page ID, use a direct link to the page
+      const shareLink = pageId 
+        ? `${window.location.origin}/donate/${pageId}` 
+        : `${window.location.origin}${location.pathname}${location.search}`;
+        
+      await navigator.clipboard.writeText(shareLink);
       setShowCopiedTooltip(true);
       setTimeout(() => setShowCopiedTooltip(false), 2000);
     } catch (err) {
@@ -51,17 +89,21 @@ const ResultPage = () => {
 
   const handleShare = (platform: string) => {
     const text = `Help me get money for ${reason}! 🙏`;
+    const shareLink = pageId 
+      ? `${window.location.origin}/donate/${pageId}` 
+      : window.location.href;
+      
     let shareUrl = '';
 
     switch (platform) {
       case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`;
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareLink)}`;
         break;
       case 'facebook':
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`;
         break;
       case 'linkedin':
-        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`;
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareLink)}`;
         break;
     }
 
@@ -70,8 +112,30 @@ const ResultPage = () => {
     }
   };
 
+  const goToMyPage = () => {
+    navigate('/my-page');
+  };
+
+  if (isLoading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-between py-12 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2.7 }}
+        className="absolute top-4 right-4"
+      >
+        <button
+          onClick={goToMyPage}
+          className="py-2 px-4 bg-gradient-to-r from-violet-400 to-indigo-400 text-white rounded-lg text-sm font-bold shadow-md hover:shadow-lg transform hover:scale-105 transition-all"
+        >
+          My Page
+        </button>
+      </motion.div>
+      
       <div className="flex-1 flex items-center">
         <motion.div 
           className={`text-center relative ${animationComplete && !showPaymentOptions ? 'cursor-pointer' : ''}`}

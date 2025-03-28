@@ -1,9 +1,15 @@
+// src/components/DonateButton.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const DonateButton: React.FC = () => {
+interface DonateButtonProps {
+  onClick?: () => void;
+}
+
+const DonateButton: React.FC<DonateButtonProps> = ({ onClick }) => {
   return (
     <motion.button
+      onClick={onClick}
       layout
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}

@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Share2, Edit, Copy, Twitter, Facebook, Linkedin } from 'lucide-react';
+import { Copy, Twitter, Facebook, Linkedin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import DonateButton from './DonateButton';
 import PaymentOptions from './PaymentOptions';
-import FallingText from './FallingText';
+import DeletePageButton from './DeletePageButton';
 
 const MyPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -15,11 +15,10 @@ const MyPage: React.FC = () => {
   const [pageData, setPageData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showShareOptions, setShowShareOptions] = useState(false);
   const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [animationComplete, setAnimationComplete] = useState(true);
+  const [showShareOptions, setShowShareOptions] = useState(false);
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -61,10 +60,6 @@ const MyPage: React.FC = () => {
   }, [user, isAuthenticated, navigate]);
 
   const handleCreatePage = () => {
-    navigate('/reason');
-  };
-
-  const handleEditPage = () => {
     navigate('/reason');
   };
 
@@ -151,86 +146,6 @@ const MyPage: React.FC = () => {
   // Existing page
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-between py-12 px-4">
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="absolute top-4 right-4 flex items-center gap-2"
-      >
-        <button
-          onClick={handleEditPage}
-          className="flex items-center gap-1 py-2 px-4 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors text-gray-700"
-        >
-          <Edit className="w-4 h-4" />
-          <span>Edit Page</span>
-        </button>
-        
-        <div className="relative">
-          <button 
-            onClick={() => setShowShareOptions(!showShareOptions)}
-            className="flex items-center gap-1 py-2 px-4 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors text-gray-700"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>Share</span>
-          </button>
-          
-          {showShareOptions && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute right-0 mt-2 p-2 bg-white shadow-lg rounded-lg z-20 flex gap-2"
-            >
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare('twitter')}
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              >
-                <Twitter className="w-4 h-4 text-gray-700" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare('facebook')}
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              >
-                <Facebook className="w-4 h-4 text-gray-700" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleShare('linkedin')}
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              >
-                <Linkedin className="w-4 h-4 text-gray-700" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCopyLink}
-                className="relative p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              >
-                <Copy className="w-4 h-4 text-gray-700" />
-                <AnimatePresence>
-                  {showCopiedTooltip && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-gray-500"
-                    >
-                      Copied!
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-            </motion.div>
-          )}
-        </div>
-      </motion.div>
-      
       <div className="flex-1 flex items-center">
         <motion.div 
           className={`text-center relative ${!showPaymentOptions ? 'cursor-pointer' : ''}`}
@@ -331,7 +246,75 @@ const MyPage: React.FC = () => {
             )}
           </motion.div>
         )}
+        
+        <div className="relative">
+          <button 
+            onClick={() => setShowShareOptions(!showShareOptions)}
+            className="flex items-center gap-2 p-2 text-gray-500"
+          >
+            <span className="text-sm">Share with donors</span>
+          </button>
+          
+          {showShareOptions && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute right-0 bottom-full mb-2 p-2 bg-white shadow-lg rounded-lg z-20 flex gap-2"
+            >
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleShare('twitter')}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Twitter className="w-4 h-4 text-gray-700" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleShare('facebook')}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Facebook className="w-4 h-4 text-gray-700" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleShare('linkedin')}
+                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Linkedin className="w-4 h-4 text-gray-700" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCopyLink}
+                className="relative p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <Copy className="w-4 h-4 text-gray-700" />
+                <AnimatePresence>
+                  {showCopiedTooltip && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-gray-500"
+                    >
+                      Copied!
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            </motion.div>
+          )}
+        </div>
       </div>
+      
+      {/* Delete page button */}
+      <DeletePageButton pageId={pageData.id} />
     </div>
   );
 };

@@ -62,14 +62,39 @@ const RegisterPage = () => {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // Simulate social login
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      navigate('/reason');
-    }, 1500);
-  };
+  const handleSocialLogin = async (provider: 'google' | 'instagram') => {
+  setLoading(true);
+  setError('');
+
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: 'https://your-vercel-domain.vercel.app/reason'
+      }
+    });
+
+    if (error) throw error;
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Social login failed');
+    setLoading(false);
+  }
+};
+
+// Wallet connection (pseudo-code, you'll need to implement)
+const handleWalletConnect = async () => {
+  setLoading(true);
+  try {
+    // Implement Web3 wallet connection logic
+    // Example with ethers.js or web3.js
+    // const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    navigate('/reason');
+  } catch (error) {
+    setError('Wallet connection failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4">
